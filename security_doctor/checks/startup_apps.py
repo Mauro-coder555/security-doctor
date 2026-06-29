@@ -4,13 +4,21 @@ from security_doctor.utils.risk import CheckResult
 
 
 STARTUP_LOCATIONS = [
-    (winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Run", "Usuario actual"),
-    (winreg.HKEY_LOCAL_MACHINE, r"Software\Microsoft\Windows\CurrentVersion\Run", "Equipo"),
+    (
+        winreg.HKEY_CURRENT_USER,
+        r"Software\Microsoft\Windows\CurrentVersion\Run",
+        "Usuario actual",
+    ),
+    (
+        winreg.HKEY_LOCAL_MACHINE,
+        r"Software\Microsoft\Windows\CurrentVersion\Run",
+        "Equipo",
+    ),
 ]
 
 
-def _count_registry_values(root, path: str) -> tuple[int, list[str]]:
-    items = []
+def _read_startup_location(root, path: str, location_label: str) -> list[dict[str, str]]:
+    apps = []
 
     try:
         with winreg.OpenKey(root, path) as key:
@@ -18,41 +26,86 @@ def _count_registry_values(root, path: str) -> tuple[int, list[str]]:
 
             while True:
                 try:
-                    name, value, _ = winreg.EnumValue(key, index)
-                    items.append(f"{name}: {value}")
+                    name, command, _ = winreg.EnumValue(key, index)
+
+                    apps.append(
+                        {
+                            "name": str(name),
+                            "command": str(command),
+                            "location": location_label,
+                            "registry_path": path,
+                        }
+                    )
+
                     index += 1
+
                 except OSError:
                     break
 
     except FileNotFoundError:
-        return 0, []
+        return []
 
     except PermissionError:
-        return 0, ["No se pudo leer una ubicación por permisos insuficientes."]
+        apps.append(
+            {
+                "name": "Ubicación no accesible",
+                "command": "No se pudo leer esta ubicación por permisos insuficientes.",
+                "location": location_label,
+                "registry_path": path,
+            }
+        )
 
-    return len(items), items
+    return apps
 
 
 def check_startup_apps() -> CheckResult:
-    total = 0
-    details = []
+    apps = []
 
-    for root, path, label in STARTUP_LOCATIONS:
-        count, items = _count_registry_values(root, path)
-        total += count
+    for root, path, location_label in STARTUP_LOCATIONS:
+        apps.extend(_read_startup_location(root, path, location_label))
 
-        details.append(f"[{label}] {count} programas")
-        details.extend(items)
+    total = len(apps)
 
-    details_text = "\n".join(details)
+    human_list = "\n".join(
+        f"- {app['name']} ({app['location']})"
+        for app in apps
+    )
+
+    technical_details = "\n".join(
+        f"{app['name']}\n"
+        f"  Ubicación: {app['location']}\n"
+        f"  Registro: {app['registry_path']}\n"
+        f"  Comando: {app['command']}\n"
+        for app in apps
+    )
+
+    explanation = (
+        "Estas son aplicaciones que Windows intenta abrir automáticamente al iniciar sesión. "
+        "No significa que sean virus ni que estén mal, pero muchas apps de inicio pueden hacer "
+        "que la PC tarde más en arrancar y consuma más memoria en segundo plano."
+    )
+
+    recommendation = (
+        "Revisá la lista y desactivá solo las apps que reconozcas y que no necesites al iniciar. "
+        "No conviene desactivar antivirus, drivers de audio, drivers de video, sincronización importante "
+        "o herramientas de trabajo sin estar seguro."
+    )
 
     if total >= 10:
         return CheckResult(
             name="Programas de inicio",
             status="warning",
             message=f"{total} programas inician con Windows.",
-            details=details_text,
+            details=technical_details or "No se encontraron detalles técnicos.",
             risk_points=2,
+            explanation=explanation,
+            recommendation=recommendation,
+            learn_more_url="https://support.microsoft.com/en-US/Windows/Experience/Startup-Boot/configure-startup-applications-in-windows",
+            display_data={
+                "type": "startup_apps",
+                "apps": apps,
+                "summary": human_list,
+            },
         )
 
     if total >= 5:
@@ -60,14 +113,30 @@ def check_startup_apps() -> CheckResult:
             name="Programas de inicio",
             status="warning",
             message=f"{total} programas inician con Windows.",
-            details=details_text,
+            details=technical_details or "No se encontraron detalles técnicos.",
             risk_points=1,
+            explanation=explanation,
+            recommendation=recommendation,
+            learn_more_url="https://support.microsoft.com/en-US/Windows/Experience/Startup-Boot/configure-startup-applications-in-windows",
+            display_data={
+                "type": "startup_apps",
+                "apps": apps,
+                "summary": human_list,
+            },
         )
 
     return CheckResult(
         name="Programas de inicio",
         status="ok",
         message=f"{total} programas inician con Windows.",
-        details=details_text or "No se detectaron programas de inicio en las ubicaciones revisadas.",
+        details=technical_details or "No se detectaron programas de inicio en las ubicaciones revisadas.",
         risk_points=0,
+        explanation=explanation,
+        recommendation="La cantidad de apps de inicio parece razonable. No hace falta cambiar nada si la PC funciona bien.",
+        learn_more_url="https://support.microsoft.com/en-US/Windows/Experience/Startup-Boot/configure-startup-applications-in-windows",
+        display_data={
+            "type": "startup_apps",
+            "apps": apps,
+            "summary": human_list,
+        },
     )

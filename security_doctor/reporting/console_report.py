@@ -49,6 +49,7 @@ def _style_for_status(status: str) -> str:
         "ok": "green",
         "warning": "yellow",
         "critical": "red",
+        "info": "cyan",
         "unknown": "dim",
     }
 

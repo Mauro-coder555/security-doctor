@@ -2,6 +2,7 @@ import platform
 
 from security_doctor.checks.bitlocker import check_bitlocker
 from security_doctor.checks.defender import check_defender
+from security_doctor.checks.disk_space import check_disk_space
 from security_doctor.checks.firewall import check_firewall
 from security_doctor.checks.password_policy import check_password_policy
 from security_doctor.checks.smb import check_smbv1
@@ -25,6 +26,7 @@ def main() -> None:
         check_password_policy(),
         check_smbv1(),
         check_startup_apps(),
+        check_disk_space(),
         check_windows_update(),
         check_uac(),
     ]

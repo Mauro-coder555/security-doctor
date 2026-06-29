@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <title>Security Doctor Report</title>
@@ -83,6 +84,10 @@
             border-left-color: #ef4444;
         }
 
+        .check.info {
+            border-left-color: #38bdf8;
+        }
+
         .check.unknown {
             border-left-color: #9ca3af;
         }
@@ -100,6 +105,7 @@
             font-size: 13px;
             font-weight: bold;
             background: #e5e7eb;
+            text-transform: uppercase;
         }
 
         .badge.ok {
@@ -117,9 +123,73 @@
             color: #991b1b;
         }
 
+        .badge.info {
+            background: #e0f2fe;
+            color: #075985;
+        }
+
         .badge.unknown {
             background: #e5e7eb;
             color: #374151;
+        }
+
+        .explanation {
+            background: #f9fafb;
+            border-radius: 10px;
+            padding: 14px;
+            margin: 12px 0;
+        }
+
+        .recommendation {
+            background: #eff6ff;
+            border-radius: 10px;
+            padding: 14px;
+            margin: 12px 0;
+            border-left: 4px solid #3b82f6;
+        }
+
+        .learn-more {
+            display: inline-block;
+            margin-top: 8px;
+            color: #2563eb;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .learn-more:hover {
+            text-decoration: underline;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+            font-size: 14px;
+        }
+
+        .data-table th,
+        .data-table td {
+            border-bottom: 1px solid #e5e7eb;
+            padding: 10px;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        .data-table th {
+            background: #f9fafb;
+        }
+
+        .command {
+            color: #4b5563;
+            font-family: Consolas, monospace;
+            font-size: 12px;
+            word-break: break-word;
+        }
+
+        .disk-progress {
+            width: 100%;
+            height: 18px;
+            margin-top: 10px;
         }
 
         pre {
@@ -148,6 +218,11 @@
             .summary {
                 grid-template-columns: 1fr;
             }
+
+            .check-title {
+                align-items: flex-start;
+                flex-direction: column;
+            }
         }
     </style>
 </head>
@@ -164,11 +239,11 @@
                 <h2>Riesgo general</h2>
 
                 {% if general_risk == "Bajo" %}
-                    <div class="metric risk-low">{{ general_risk }}</div>
+                <div class="metric risk-low">{{ general_risk }}</div>
                 {% elif general_risk == "Medio" %}
-                    <div class="metric risk-medium">{{ general_risk }}</div>
+                <div class="metric risk-medium">{{ general_risk }}</div>
                 {% else %}
-                    <div class="metric risk-high">{{ general_risk }}</div>
+                <div class="metric risk-high">{{ general_risk }}</div>
                 {% endif %}
             </div>
 
@@ -195,20 +270,79 @@
 
         <section class="checks">
             {% for result in results %}
-                <article class="card check {{ result.status }}">
-                    <div class="check-title">
-                        <h2>{{ result.name }}</h2>
-                        <span class="badge {{ result.status }}">{{ result.status }}</span>
-                    </div>
+            <article class="card check {{ result.status }}">
+                <div class="check-title">
+                    <h2>{{ result.name }}</h2>
+                    <span class="badge {{ result.status }}">{{ result.status }}</span>
+                </div>
 
-                    <p><strong>Resultado:</strong> {{ result.message }}</p>
-                    <p><strong>Puntos de riesgo:</strong> {{ result.risk_points }}</p>
+                <p><strong>Resultado:</strong> {{ result.message }}</p>
+                <p><strong>Puntos de riesgo:</strong> {{ result.risk_points }}</p>
 
-                    <details>
-                        <summary>Ver detalles técnicos</summary>
-                        <pre>{{ result.details }}</pre>
-                    </details>
-                </article>
+                {% if result.explanation %}
+                <div class="explanation">
+                    <strong>¿Qué significa?</strong>
+                    <p>{{ result.explanation }}</p>
+                </div>
+                {% endif %}
+
+                {% if result.recommendation %}
+                <div class="recommendation">
+                    <strong>Recomendación:</strong>
+                    <p>{{ result.recommendation }}</p>
+
+                    {% if result.learn_more_url %}
+                    <a class="learn-more" href="{{ result.learn_more_url }}" target="_blank">
+                        Leer guía oficial
+                    </a>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                {% if result.display_data.type == "startup_apps" and result.display_data.apps %}
+                <h3>Aplicaciones detectadas</h3>
+
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Aplicación</th>
+                            <th>Ubicación</th>
+                            <th>Comando detectado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for app in result.display_data.apps %}
+                        <tr>
+                            <td>{{ app.name }}</td>
+                            <td>{{ app.location }}</td>
+                            <td class="command">{{ app.command }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% endif %}
+
+                {% if result.display_data.type == "disk_space" %}
+                <h3>Uso del disco C:</h3>
+
+                <p>
+                    <strong>Total:</strong> {{ result.display_data.total_gb }} GB |
+                    <strong>Usado:</strong> {{ result.display_data.used_gb }} GB |
+                    <strong>Libre:</strong> {{ result.display_data.free_gb }} GB
+                </p>
+
+                <progress class="disk-progress" value="{{ result.display_data.free_percentage }}" max="100">
+                    {{ result.display_data.free_percentage }}%
+                </progress>
+
+                <p>{{ result.display_data.free_percentage }}% libre</p>
+                {% endif %}
+
+                <details>
+                    <summary>Ver detalles técnicos</summary>
+                    <pre>{{ result.details }}</pre>
+                </details>
+            </article>
             {% endfor %}
         </section>
     </main>
@@ -217,4 +351,5 @@
         Generado por Security Doctor. Este informe es orientativo y no reemplaza una auditoría profesional completa.
     </footer>
 </body>
+
 </html>

@@ -1,4 +1,5 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Any
 
 
 @dataclass
@@ -8,6 +9,10 @@ class CheckResult:
     message: str
     details: str
     risk_points: int
+    explanation: str = ""
+    recommendation: str = ""
+    learn_more_url: str = ""
+    display_data: dict[str, Any] = field(default_factory=dict)
 
 
 def calculate_general_risk(results: list[CheckResult]) -> str:
@@ -35,6 +40,7 @@ def status_icon(status: str) -> str:
         "ok": "✔",
         "warning": "⚠",
         "critical": "❌",
+        "info": "ℹ",
         "unknown": "?",
     }
 

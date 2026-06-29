@@ -28,6 +28,7 @@ def generate_html_report(
         "ok": sum(1 for result in results if result.status == "ok"),
         "warning": sum(1 for result in results if result.status == "warning"),
         "critical": sum(1 for result in results if result.status == "critical"),
+        "info": sum(1 for result in results if result.status == "info"),
         "unknown": sum(1 for result in results if result.status == "unknown"),
     }
 
